@@ -1,7 +1,11 @@
 import os
 import math
+from dotenv import load_dotenv
 
-ARK_API_KEY  = os.getenv("ARK_API_KEY", "9dec1335-b5ac-4a0e-bf5b-922f0eb516bd")
+# 加载 .env 文件
+load_dotenv()
+
+ARK_API_KEY  = os.getenv("ARK_API_KEY", "")
 ARK_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3"
 ARK_MODEL_ID    = os.getenv("ARK_MODEL_ID",    "doubao-seedream-4-5-251128")
 ARK_MODEL_ID_V5 = os.getenv("ARK_MODEL_ID_V5", "doubao-seedream-5-0-260128")

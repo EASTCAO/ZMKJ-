@@ -26,19 +26,31 @@ pip install -r requirements.txt
 
 ### 2. 配置环境变量
 
-设置以下环境变量，或直接修改 `config.py`：
+**方式 1：使用 .env 文件（推荐）**
+
+复制 `.env.example` 为 `.env`，填入你的 API Key：
 
 ```bash
-# 必需
-export ARK_API_KEY="your-api-key"
-
-# 可选（使用提示词优化功能时必需）
-export ARK_CHAT_MODEL="doubao-seed-2-0-pro-260215"
-
-# 可选（默认值已配置）
-export ARK_MODEL_ID="doubao-seedream-4-5-251128"
-export ARK_MODEL_ID_V5="doubao-seedream-5-0-260128"
+cp .env.example .env
 ```
+
+编辑 `.env` 文件：
+
+```bash
+ARK_API_KEY=your-api-key-here
+```
+
+**方式 2：设置系统环境变量**
+
+```bash
+# Windows
+set ARK_API_KEY=your-api-key-here
+
+# Linux/Mac
+export ARK_API_KEY=your-api-key-here
+```
+
+**注意：** `.env` 文件已在 `.gitignore` 中，不会被提交到 Git。
 
 ### 3. 启动服务
 
