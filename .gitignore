@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# 虚拟环境
+Lib/
+Scripts/
+Include/
+pyvenv.cfg
+
+# 数据库
+*.db-journal
+
+# 临时文件
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+
+# 测试文件
+test_*.py
+test_*.jpg
+test_*.png
+probe_*.py
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 环境变量（如果使用 .env 文件）
+.env
+
+# 临时图片
+image.png
+Untitled
