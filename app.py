@@ -57,7 +57,10 @@ def index():
         for r in ASPECT_RATIOS
     )
     _size_labels = {"2K": "2K 高清", "4K": "4K 超清"}
-    sizes_opts = "".join(f'<option value="{k}">{_size_labels.get(k, k)}</option>' for k in IMAGE_SIZES.keys())
+    sizes_opts = "".join(
+        f'<div class="size-opt{"  selected" if i==0 else ""}" data-v="{k}">{_size_labels.get(k, k)}</div>'
+        for i, k in enumerate(IMAGE_SIZES.keys())
+    )
 
     return f"""<!DOCTYPE html>
 <html lang="zh">
@@ -505,7 +508,7 @@ body::after {{
     background: rgba(255,255,255,0.5);
     border: 1px solid rgba(220,200,150,0.3);
     border-radius: 16px;
-    overflow: hidden;
+    overflow: visible;
     backdrop-filter: blur(20px);
     box-shadow: 0 8px 32px rgba(200,180,120,0.1), inset 0 1px 0 rgba(255,255,255,0.6), 0 0 60px rgba(255,210,130,0.05);
 }}
@@ -697,6 +700,8 @@ body::after {{
     padding: 0 20px 12px;
     border-top: 1px solid rgba(160,140,100,0.12);
     padding-top: 10px;
+    overflow: visible;
+    position: relative;
 }}
 .opts-bar select {{
     background: rgba(255,255,255,0.4);
@@ -728,9 +733,9 @@ body::after {{
     bottom: calc(100% + 8px); left: 0;
     background: rgba(252,248,240,0.97);
     border: 1px solid rgba(180,160,120,0.25);
-    border-radius: 14px; padding: 12px;
+    border-radius: 14px; padding: 14px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-    backdrop-filter: blur(20px); z-index: 200; width: 236px;
+    backdrop-filter: blur(20px); z-index: 200; width: 250px;
 }}
 .ratio-picker.open .ratio-panel {{ display: block; }}
 .ratio-grid {{
@@ -755,6 +760,42 @@ body::after {{
 .ratio-opt.selected .ratio-thumb-auto {{ color: #a07830; }}
 .ratio-opt span {{ font-size: 0.68rem; color: rgba(80,70,55,0.65); white-space: nowrap; }}
 .ratio-opt.selected span {{ color: #a07830; font-weight: 700; }}
+
+/* 画质选择器 */
+.size-picker {{ position: relative; }}
+.size-trigger {{
+    display: flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 10px;
+    background: rgba(255,255,255,0.4);
+    border: 1px solid rgba(180,160,120,0.25);
+    border-radius: 8px; color: #3a2f20; font-size: 0.82rem; font-weight: 500;
+    cursor: pointer; font-family: inherit; transition: background 0.2s;
+    flex-shrink: 0; white-space: nowrap;
+}}
+.size-trigger:hover {{ background: rgba(255,255,255,0.65); }}
+.size-trigger svg {{ opacity: 0.5; transition: transform 0.2s; }}
+.size-picker.open .size-trigger svg {{ transform: rotate(180deg); }}
+.size-panel {{
+    display: none; position: absolute;
+    bottom: calc(100% + 8px); left: 0;
+    background: rgba(252,248,240,0.97);
+    border: 1px solid rgba(180,160,120,0.25);
+    border-radius: 12px; padding: 6px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    backdrop-filter: blur(20px); z-index: 200;
+    min-width: 110px;
+}}
+.size-picker.open .size-panel {{ display: block; }}
+.size-opt {{
+    display: flex; align-items: center;
+    padding: 7px 12px; border-radius: 8px; cursor: pointer;
+    font-size: 0.82rem; color: #3a2f20; font-weight: 500;
+    font-family: inherit; border: 1px solid transparent;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}}
+.size-opt:hover {{ background: rgba(200,164,90,0.1); }}
+.size-opt.selected {{ background: rgba(200,164,90,0.15); border-color: rgba(200,164,90,0.5); color: #a07830; font-weight: 700; }}
 
 /* 模型切换 */
 .model-picker {{ position: relative; }}
@@ -1067,7 +1108,15 @@ body::after {{
                     <div class="ratio-grid">{ratios_grid}</div>
                 </div>
             </div>
-            <select id="sizeSel">{sizes_opts}</select>
+            <div class="size-picker" id="sizePicker">
+                <button class="size-trigger" id="sizeTrigger">
+                    <span id="sizeTriggerLabel">2K 高清</span>
+                    <svg viewBox="0 0 10 6" width="10" height="6" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 1l4 4 4-4"/></svg>
+                </button>
+                <div class="size-panel" id="sizePanel">
+                    {sizes_opts}
+                </div>
+            </div>
             <div class="model-picker" id="modelPicker">
                 <button class="model-toggle" id="modelToggle">
                     <span id="modelLabel">SD 4.5</span>
@@ -1111,10 +1160,28 @@ body::after {{
 <script>
 const promptInput = document.getElementById('promptInput');
 const genBtn = document.getElementById('genBtn');
-const sizeSel = document.getElementById('sizeSel');
 const statusEl = document.getElementById('status');
 const heroArea = document.getElementById('heroArea');
 const resultsContainer = document.getElementById('resultsContainer');
+
+// ── 画质选择 ──
+let currentSize = '2K';
+const sizePicker = document.getElementById('sizePicker');
+const sizeTrigger = document.getElementById('sizeTrigger');
+const sizeTriggerLabel = document.getElementById('sizeTriggerLabel');
+const sizeOpts = document.querySelectorAll('.size-opt');
+sizeTrigger.addEventListener('click', e => {{ e.stopPropagation(); sizePicker.classList.toggle('open'); }});
+document.addEventListener('click', () => sizePicker.classList.remove('open'));
+sizeOpts.forEach(opt => {{
+    opt.addEventListener('click', e => {{
+        e.stopPropagation();
+        sizeOpts.forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        currentSize = opt.dataset.v;
+        sizeTriggerLabel.textContent = opt.textContent;
+        sizePicker.classList.remove('open');
+    }});
+}});
 
 // ── 模型切换 ──
 let currentModel = '{ARK_MODEL_ID}';
@@ -1604,7 +1671,7 @@ async function doGenerate() {{
     const fd = new FormData();
     fd.append('prompt', prompt);
     fd.append('ratio', currentRatio);
-    fd.append('size_label', sizeSel.value);
+    fd.append('size_label', currentSize);
     fd.append('model_id', currentModel);
     uploadState.forEach((state, i) => {{
         if (state.file) fd.append('image_' + i, state.file);
