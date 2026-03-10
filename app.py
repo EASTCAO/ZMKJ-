@@ -1920,7 +1920,9 @@ async function doStoryboard() {{
                     // 兼容多种结果字段：result.content / result / upstreamRaw
                     const r = d2.data.result;
                     let content = '';
-                    if (r && typeof r === 'object' && r.content) {{
+                    if (r && typeof r === 'object' && r.raw) {{
+                        content = r.raw;
+                    }} else if (r && typeof r === 'object' && r.content) {{
                         content = r.content;
                     }} else if (r && typeof r === 'string') {{
                         content = r;
