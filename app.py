@@ -13,13 +13,40 @@ try:
 except ImportError:
     pass
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session, redirect, url_for
 from math import gcd
+from functools import wraps
 
-from config import IMAGE_SIZES, ASPECT_RATIOS, compute_size, _QUALITY_BASE, _MIN_PIXELS, ARK_MODEL_ID, ARK_MODEL_ID_V5
+from config import IMAGE_SIZES, ASPECT_RATIOS, compute_size, _QUALITY_BASE, _MIN_PIXELS, ARK_MODEL_ID, ARK_MODEL_ID_V5, API_TOKEN, SECRET_KEY, LOGIN_USERNAME, LOGIN_PASSWORD
 from api_client import generate_id_photo, optimize_prompt
+import yswg_client
 
 app = Flask(__name__)
+app.secret_key = SECRET_KEY
+
+
+def require_login(f):
+    """浏览器路由：检查 session 登录状态，未登录跳转 /login。"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("logged_in"):
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+def require_auth(f):
+    """API 路由：接受 session 登录 或 Bearer Token，均可通过。"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if session.get("logged_in"):
+            return f(*args, **kwargs)
+        if API_TOKEN:
+            auth = request.headers.get("Authorization", "")
+            if auth.startswith("Bearer ") and auth[7:] == API_TOKEN:
+                return f(*args, **kwargs)
+        return jsonify({"error": "Unauthorized"}), 401
+    return decorated
 
 
 def gcd_ceil(x: float) -> int:
@@ -36,6 +63,7 @@ def pil_to_data_uri(img: Image.Image) -> str:
 
 
 @app.route("/")
+@require_login
 def index():
     def _thumb(r):
         w, h = map(int, r.split(":"))
@@ -1736,7 +1764,56 @@ async function doGenerate() {{
 </html>"""
 
 
+# ── 造梦 AI 服务平台路由 ─────────────────────────────────────────────────────────
+
+@app.route("/api/ai/invoke/<service_id>", methods=["POST"])
+@require_auth
+def ai_invoke(service_id):
+    """
+    调用外部 AI 服务（异步），立即返回 taskId。
+
+    请求体 JSON：
+        {
+            "messages": [
+                {"role": "system", "content": "..."},
+                {"role": "user",   "content": "..."}
+            ],
+            "clientTraceId": "可选"
+        }
+    """
+    body = request.get_json(silent=True) or {}
+    messages = body.get("messages")
+    if not messages or not isinstance(messages, list):
+        return jsonify({"error": "messages 字段缺失或格式错误"}), 400
+
+    try:
+        data = yswg_client.invoke_service(
+            service_id=service_id,
+            messages=messages,
+            client_trace_id=body.get("clientTraceId"),
+        )
+        return jsonify({"code": 200, "data": data})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+
+@app.route("/api/ai/task/<task_id>", methods=["GET"])
+@require_auth
+def ai_task(task_id):
+    """查询 AI 服务任务状态/结果。"""
+    try:
+        data = yswg_client.poll_task(task_id)
+        return jsonify({"code": 200, "data": data})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+
 @app.route("/optimize", methods=["POST"])
+@require_auth
 def optimize():
     text = request.form.get("text", "").strip()
     if not text:
@@ -1748,6 +1825,7 @@ def optimize():
 
 
 @app.route("/generate", methods=["POST"])
+@require_auth
 def generate():
     prompt = request.form.get("prompt", "").strip()
     ratio = request.form.get("ratio", "AUTO")
@@ -1813,6 +1891,128 @@ def generate():
         status = f"生成完成 ({len(imgs)}/2)"
 
     return jsonify({"status": status, "images": images})
+
+
+# ── 登录 / 登出 ──────────────────────────────────────────────────────────────────
+
+_LOGIN_HTML = """<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>造梦空间 · 登录</title>
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'SimHei', 'STHeiti', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(160deg, #dce8f0 0%, #e8efe6 20%, #f8f0e0 45%, #e6eef4 70%, #f0ece4 100%);
+    background-size: 400% 400%;
+    animation: gradShift 25s ease infinite;
+}
+@keyframes gradShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+.card {
+    background: rgba(255,255,255,0.72);
+    backdrop-filter: blur(18px);
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 20px;
+    padding: 48px 44px 40px;
+    width: 360px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.10);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #3a3530;
+    text-align: center;
+    letter-spacing: 2px;
+}
+.subtitle {
+    font-size: 13px;
+    color: #888;
+    text-align: center;
+    margin-top: -10px;
+}
+input {
+    width: 100%;
+    padding: 13px 16px;
+    border: 1.5px solid rgba(180,160,120,0.35);
+    border-radius: 12px;
+    font-size: 15px;
+    background: rgba(255,255,255,0.6);
+    outline: none;
+    transition: border-color .2s;
+    color: #3a3530;
+    margin-bottom: 12px;
+}
+input:focus { border-color: rgba(180,140,80,0.7); }
+button {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, #c8a96e, #a07840);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: opacity .2s;
+}
+button:hover { opacity: 0.88; }
+.error {
+    background: rgba(220,80,60,0.1);
+    color: #c04030;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    text-align: center;
+}
+</style>
+</head>
+<body>
+<div class="card">
+    <h1>造梦空间</h1>
+    <p class="subtitle">内部访问，请登录</p>
+    {error_block}
+    <form method="POST">
+        <input type="text" name="username" placeholder="用户名" autofocus autocomplete="username">
+        <input type="password" name="password" placeholder="密码" autocomplete="current-password">
+        <button type="submit">登录</button>
+    </form>
+</div>
+</body>
+</html>"""
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    error_block = ""
+    if request.method == "POST":
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
+        if LOGIN_USERNAME and LOGIN_PASSWORD and username == LOGIN_USERNAME and password == LOGIN_PASSWORD:
+            session["logged_in"] = True
+            return redirect(url_for("index"))
+        error_block = '<div class="error">用户名或密码错误</div>'
+    return _LOGIN_HTML.format(error_block=error_block)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 
 
 if __name__ == "__main__":

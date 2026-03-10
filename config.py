@@ -56,3 +56,14 @@ GLOBAL_NEGATIVE_PROMPT = (
 
 MAX_REF_IMAGE_PX = 1024
 REQUEST_TIMEOUT  = 120
+
+# ── 造梦 AI 服务平台（yswg.love）──────────────────────────────────────────────
+YSWG_BASE_URL   = os.getenv("YSWG_BASE_URL",   "http://yswg.love:15091")
+YSWG_APP_KEY    = os.getenv("YSWG_APP_KEY",    "")
+YSWG_APP_SECRET = os.getenv("YSWG_APP_SECRET", "")
+
+# ── 内部访问鉴权 ───────────────────────────────────────────────────────────────
+API_TOKEN      = os.getenv("API_TOKEN",      "")
+SECRET_KEY     = os.getenv("SECRET_KEY",     "change-me-in-production")
+LOGIN_USERNAME = os.getenv("LOGIN_USERNAME", "admin")
+LOGIN_PASSWORD = os.getenv("LOGIN_PASSWORD", "")
