@@ -17,7 +17,7 @@ from flask import Flask, request, jsonify, session, redirect, url_for
 from math import gcd
 from functools import wraps
 
-from config import IMAGE_SIZES, ASPECT_RATIOS, compute_size, _QUALITY_BASE, _MIN_PIXELS, ARK_MODEL_ID, ARK_MODEL_ID_V5, API_TOKEN, SECRET_KEY, LOGIN_USERNAME, LOGIN_PASSWORD
+from config import IMAGE_SIZES, ASPECT_RATIOS, compute_size, _QUALITY_BASE, _MIN_PIXELS, ARK_MODEL_ID, ARK_MODEL_ID_V5, API_TOKEN, SECRET_KEY, LOGIN_USERNAME, LOGIN_PASSWORD, YSWG_STORYBOARD_SERVICE_ID
 from api_client import generate_id_photo, optimize_prompt
 import yswg_client
 
@@ -558,7 +558,9 @@ body::after {{
     padding-bottom: 6px;
     border-bottom: 2px solid transparent;
     cursor: pointer;
+    transition: color .2s;
 }}
+.tab-bar .tab:hover {{ color: rgba(80,70,55,0.7); }}
 .tab-bar .tab.active {{
     color: #4a3f30;
     border-bottom-color: #c8a45a;
@@ -573,6 +575,59 @@ body::after {{
     gap: 4px;
 }}
 .tab-bar .history:hover {{ color: rgba(80,70,55,0.6); }}
+
+/* 分镜结果卡片 */
+.sb-card {{
+    background: rgba(255,255,255,0.82);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(200,180,140,0.25);
+    border-radius: 16px;
+    padding: 20px 22px;
+    margin-bottom: 16px;
+    max-width: 760px;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+}}
+.sb-card-header {{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    color: #6a5a40;
+    font-size: 0.85rem;
+}}
+.sb-card-status {{
+    font-size: 0.8rem;
+    color: #aaa;
+    margin-left: auto;
+}}
+.sb-frames {{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}}
+.sb-frame {{
+    background: rgba(245,240,230,0.6);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.82rem;
+    line-height: 1.65;
+    color: #3a3530;
+}}
+.sb-frame-label {{
+    font-weight: 700;
+    color: #c8a45a;
+    margin-bottom: 4px;
+    font-size: 0.78rem;
+    letter-spacing: 1px;
+}}
+.sb-loading {{
+    text-align: center;
+    color: #bbb;
+    padding: 30px 0;
+    font-size: 0.85rem;
+}}
 
 /* 输入主行 */
 .input-body {{
@@ -1104,9 +1159,13 @@ body::after {{
 <div class="bottom-wrap">
     <div class="input-card">
         <div class="tab-bar">
-            <div class="tab active">
+            <div class="tab active" id="tabImg" onclick="switchTab('img')">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="flex-shrink:0"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
                 图片
+            </div>
+            <div class="tab" id="tabSb" onclick="switchTab('sb')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="flex-shrink:0"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                分镜
             </div>
             <div class="spacer"></div>
             <div class="history">
@@ -1115,7 +1174,7 @@ body::after {{
             </div>
         </div>
 
-        <div class="input-body">
+        <div class="input-body" id="imgPanel">
             <div class="upload-boxes" id="uploadBoxes"></div>
             <textarea class="prompt-input" id="promptInput" placeholder="使用中文输入您的修改请求（Ctrl+Enter 提交）" rows="2"></textarea>
             <div class="action-btns">
@@ -1126,7 +1185,16 @@ body::after {{
             </div>
         </div>
 
-        <div class="opts-bar">
+        <div class="input-body" id="sbPanel" style="display:none">
+            <textarea class="prompt-input" id="sbInput" placeholder="输入产品描述，例如：北欧风格木质香薰蜡烛礼盒套装" rows="3"></textarea>
+            <div class="action-btns">
+                <button class="gen-btn" id="sbBtn" title="生成分镜" onclick="doStoryboard()">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="opts-bar" id="imgOptsBar">
             <div class="ratio-picker" id="ratioPicker">
                 <button class="ratio-trigger" id="ratioTrigger">
                     <span id="ratioTriggerLabel">AUTO</span>
@@ -1759,6 +1827,114 @@ async function doGenerate() {{
         container.appendChild(p);
     }}
 }})();
+
+/* ── Tab 切换 ── */
+const imgPanel    = document.getElementById('imgPanel');
+const sbPanel     = document.getElementById('sbPanel');
+const imgOptsBar  = document.getElementById('imgOptsBar');
+const tabImg      = document.getElementById('tabImg');
+const tabSb       = document.getElementById('tabSb');
+
+function switchTab(mode) {{
+    if (mode === 'img') {{
+        tabImg.classList.add('active');
+        tabSb.classList.remove('active');
+        imgPanel.style.display = '';
+        imgOptsBar.style.display = '';
+        sbPanel.style.display = 'none';
+    }} else {{
+        tabSb.classList.add('active');
+        tabImg.classList.remove('active');
+        sbPanel.style.display = '';
+        imgPanel.style.display = 'none';
+        imgOptsBar.style.display = 'none';
+    }}
+}}
+
+/* ── 分镜生成 ── */
+const SERVICE_ID = '{YSWG_STORYBOARD_SERVICE_ID}';
+
+function parseSbFrames(content) {{
+    const parts = content.split(/---FRAME_(\\d+)---/).filter((_, i) => i % 2 === 0).map(s => s.trim()).filter(Boolean);
+    return parts;
+}}
+
+function createSbCard(product) {{
+    const card = document.createElement('div');
+    card.className = 'sb-card';
+    card.innerHTML =
+        '<div class="sb-card-header">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>' +
+            '<span>' + escHtml(product) + '</span>' +
+            '<span class="sb-card-status" id="sbStatus_' + Date.now() + '">生成中…</span>' +
+        '</div>' +
+        '<div class="sb-frames"><div class="sb-loading">正在生成分镜，请稍候…</div></div>';
+    return card;
+}}
+
+async function doStoryboard() {{
+    const product = document.getElementById('sbInput').value.trim();
+    if (!product) {{ statusEl.textContent = '请输入产品描述'; return; }}
+
+    statusEl.textContent = '';
+    heroArea.classList.add('collapsed');
+
+    const card = createSbCard(product);
+    resultsContainer.prepend(card);
+    window.scrollTo({{ top: 0, behavior: 'smooth' }});
+
+    const framesEl = card.querySelector('.sb-frames');
+    const statusLabel = card.querySelector('[id^="sbStatus_"]');
+
+    try {{
+        const resp = await fetch('/api/ai/invoke/' + SERVICE_ID, {{
+            method: 'POST',
+            headers: {{ 'Content-Type': 'application/json' }},
+            body: JSON.stringify({{
+                messages: [
+                    {{ role: 'system', content: '你是一名专业的「欧美市场电商产品图分镜师」，擅长为各类消费品设计专业的产品图拍摄分镜脚本。每个分镜需包含：场景环境、光线设置、构图方式、产品摆放、画面氛围等要素，使用简洁专业的中文描述。' }},
+                    {{ role: 'user', content: '请为以下产品生成15个专业的欧美市场产品图分镜提示词，每个分镜用 ---FRAME_序号--- 分隔：\\n\\n' + product }}
+                ]
+            }})
+        }});
+        const data = await resp.json();
+        if (data.error) {{ framesEl.innerHTML = '<div class="sb-frame" style="color:#c04030">' + escHtml(data.error) + '</div>'; return; }}
+
+        const taskId = data.data.taskId;
+        statusLabel.textContent = '排队中…';
+
+        // 轮询
+        const poll = setInterval(async () => {{
+            try {{
+                const r2 = await fetch('/api/ai/task/' + taskId);
+                const d2 = await r2.json();
+                if (d2.error) {{ clearInterval(poll); framesEl.innerHTML = '<div class="sb-frame" style="color:#c04030">' + escHtml(d2.error) + '</div>'; return; }}
+
+                const s = d2.data.status;
+                if (s === 0) statusLabel.textContent = '排队中（第 ' + (d2.data.queuePosition || '?') + ' 位）…';
+                if (s === 1) statusLabel.textContent = '生成中…';
+                if (s === 2) {{
+                    clearInterval(poll);
+                    statusLabel.textContent = '✓ 完成';
+                    const content = d2.data.result && d2.data.result.content ? d2.data.result.content : '';
+                    const frames = parseSbFrames(content);
+                    if (frames.length === 0) {{
+                        framesEl.innerHTML = '<div class="sb-frame">' + escHtml(content) + '</div>';
+                    }} else {{
+                        framesEl.innerHTML = frames.map((f, i) =>
+                            '<div class="sb-frame"><div class="sb-frame-label">FRAME ' + (i+1) + '</div>' + escHtml(f) + '</div>'
+                        ).join('');
+                    }}
+                }}
+                if (s === 3) {{ clearInterval(poll); statusLabel.textContent = '✗ 失败'; framesEl.innerHTML = '<div class="sb-frame" style="color:#c04030">失败：' + escHtml(d2.data.failReason || '未知原因') + '</div>'; }}
+                if (s === 4) {{ clearInterval(poll); statusLabel.textContent = '已取消'; }}
+            }} catch(e) {{ clearInterval(poll); statusLabel.textContent = '请求失败'; }}
+        }}, 3000);
+
+    }} catch(err) {{
+        framesEl.innerHTML = '<div class="sb-frame" style="color:#c04030">请求失败：' + escHtml(err.message) + '</div>';
+    }}
+}}
 </script>
 </body>
 </html>"""

@@ -58,9 +58,10 @@ MAX_REF_IMAGE_PX = 1024
 REQUEST_TIMEOUT  = 120
 
 # ── 造梦 AI 服务平台（yswg.love）──────────────────────────────────────────────
-YSWG_BASE_URL   = os.getenv("YSWG_BASE_URL",   "http://yswg.love:15091")
-YSWG_APP_KEY    = os.getenv("YSWG_APP_KEY",    "")
-YSWG_APP_SECRET = os.getenv("YSWG_APP_SECRET", "")
+YSWG_BASE_URL              = os.getenv("YSWG_BASE_URL",              "http://yswg.love:15091")
+YSWG_APP_KEY               = os.getenv("YSWG_APP_KEY",               "")
+YSWG_APP_SECRET            = os.getenv("YSWG_APP_SECRET",            "")
+YSWG_STORYBOARD_SERVICE_ID = os.getenv("YSWG_STORYBOARD_SERVICE_ID", "7726840877150000009")
 
 # ── 内部访问鉴权 ───────────────────────────────────────────────────────────────
 API_TOKEN      = os.getenv("API_TOKEN",      "")
