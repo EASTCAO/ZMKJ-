@@ -1903,8 +1903,8 @@ _LOGIN_HTML = """<!DOCTYPE html>
 <title>造梦空间 · 登录</title>
 <link rel="icon" type="image/png" href="/static/favicon.png">
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
+* {{ box-sizing: border-box; margin: 0; padding: 0; }}
+body {{
     font-family: 'SimHei', 'STHeiti', 'Microsoft YaHei', 'PingFang SC', sans-serif;
     min-height: 100vh;
     display: flex;
@@ -1913,13 +1913,13 @@ body {
     background: linear-gradient(160deg, #dce8f0 0%, #e8efe6 20%, #f8f0e0 45%, #e6eef4 70%, #f0ece4 100%);
     background-size: 400% 400%;
     animation: gradShift 25s ease infinite;
-}
-@keyframes gradShift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-.card {
+}}
+@keyframes gradShift {{
+    0% {{ background-position: 0% 50%; }}
+    50% {{ background-position: 100% 50%; }}
+    100% {{ background-position: 0% 50%; }}
+}}
+.card {{
     background: rgba(255,255,255,0.72);
     backdrop-filter: blur(18px);
     border: 1px solid rgba(255,255,255,0.6);
@@ -1930,21 +1930,21 @@ body {
     display: flex;
     flex-direction: column;
     gap: 20px;
-}
-h1 {
+}}
+h1 {{
     font-size: 22px;
     font-weight: 700;
     color: #3a3530;
     text-align: center;
     letter-spacing: 2px;
-}
-.subtitle {
+}}
+.subtitle {{
     font-size: 13px;
     color: #888;
     text-align: center;
     margin-top: -10px;
-}
-input {
+}}
+input {{
     width: 100%;
     padding: 13px 16px;
     border: 1.5px solid rgba(180,160,120,0.35);
@@ -1955,9 +1955,9 @@ input {
     transition: border-color .2s;
     color: #3a3530;
     margin-bottom: 12px;
-}
-input:focus { border-color: rgba(180,140,80,0.7); }
-button {
+}}
+input:focus {{ border-color: rgba(180,140,80,0.7); }}
+button {{
     width: 100%;
     padding: 13px;
     background: linear-gradient(135deg, #c8a96e, #a07840);
@@ -1969,16 +1969,16 @@ button {
     cursor: pointer;
     letter-spacing: 2px;
     transition: opacity .2s;
-}
-button:hover { opacity: 0.88; }
-.error {
+}}
+button:hover {{ opacity: 0.88; }}
+.error {{
     background: rgba(220,80,60,0.1);
     color: #c04030;
     border-radius: 10px;
     padding: 10px 14px;
     font-size: 13px;
     text-align: center;
-}
+}}
 </style>
 </head>
 <body>
