@@ -1916,7 +1916,21 @@ async function doStoryboard() {{
                 if (s === 2) {{
                     clearInterval(poll);
                     statusLabel.textContent = '✓ 完成';
-                    const content = d2.data.result && d2.data.result.content ? d2.data.result.content : '';
+                    console.log('[YSWG] task result:', JSON.stringify(d2.data));
+                    // 兼容多种结果字段：result.content / result / upstreamRaw
+                    const r = d2.data.result;
+                    let content = '';
+                    if (r && typeof r === 'object' && r.content) {{
+                        content = r.content;
+                    }} else if (r && typeof r === 'string') {{
+                        content = r;
+                    }} else if (d2.data.upstreamRaw) {{
+                        content = typeof d2.data.upstreamRaw === 'string' ? d2.data.upstreamRaw : JSON.stringify(d2.data.upstreamRaw);
+                    }}
+                    if (!content) {{
+                        framesEl.innerHTML = '<div class="sb-frame" style="color:#aaa">结果为空，请查看控制台日志（F12）</div>';
+                        return;
+                    }}
                     const frames = parseSbFrames(content);
                     if (frames.length === 0) {{
                         framesEl.innerHTML = '<div class="sb-frame">' + escHtml(content) + '</div>';
