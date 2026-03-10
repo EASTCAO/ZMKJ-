@@ -64,11 +64,12 @@ def invoke_service(
 
     url = f"{YSWG_BASE_URL}/api/admin/api/v1/ai/service/invoke/{service_id}"
     resp = requests.post(url, json=body, headers=_headers(), timeout=timeout)
+    print(f"[YSWG] invoke status={resp.status_code} body={resp.text[:300]}")
     resp.raise_for_status()
 
     payload = resp.json()
     if payload.get("code") != 200:
-        raise RuntimeError(f"调用失败：{payload.get('message', payload)}")
+        raise RuntimeError(f"调用失败：code={payload.get('code')} message={payload.get('message')} detail={payload}")
 
     return payload["data"]
 
