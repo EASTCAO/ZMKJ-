@@ -2002,6 +2002,8 @@ def login():
     if request.method == "POST":
         username = request.form.get("username", "")
         password = request.form.get("password", "")
+        print(f"[DEBUG] 环境变量 LOGIN_USERNAME='{LOGIN_USERNAME}' LOGIN_PASSWORD='{LOGIN_PASSWORD}'")
+        print(f"[DEBUG] 用户输入 username='{username}' password='{password}'")
         if LOGIN_USERNAME and LOGIN_PASSWORD and username == LOGIN_USERNAME and password == LOGIN_PASSWORD:
             session["logged_in"] = True
             return redirect(url_for("index"))
